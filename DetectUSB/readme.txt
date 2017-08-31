@@ -8,7 +8,7 @@ Establish a data store using the file "USB_Device_20170606.sql" on a MySQL/Maria
 
 API
 Mount the API file "index.php" on a web server of your choosing.
-Edit "index.php" (lines 10 and 54) to use the creds for your Datastore.
+Edit "index.php" (lines 9, 10 and 11) to use the creds for your Datastore.
 
 
 Client Script
@@ -32,10 +32,10 @@ In both cases active querying occurs at 5 minute intervals.
 
 
 To check for the owner of a USB. 
-Normal setup is to have a shortcut on the desktop of selected front desk pcís.
+Normal setup is to have a shortcut on the desktop of selected front desk pc‚Äôs.
 The shortcut calls PowerShell with two arguments: 
 The first argument is the path to the script.
-The second is literally anything (say an ìXî). 
+The second is literally anything (say an ‚ÄúX‚Äù). 
 It is the presence of the second argument that changes the behaviour of the script.
 
 Staff can then plug in a USB and run the script from the shortcut.
