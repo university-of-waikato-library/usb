@@ -1,6 +1,6 @@
 <?php
     // Author:          Peter Stone
-    // Organisation:    University of Waolatp
+    // Organisation:    University of Waikato
     // Department:      Library Systems Team
     // Purpose:         Acts as a simple API. Insert or displays user details associated with USB devices from data stored in a database compared to USB metadata
     // Date:            2017-04-13
@@ -20,7 +20,7 @@
     </head>
     <body>
             <nav class="navbar navbar-expand-md navbar-dark static-top bg-dark">
-                <a class="navbar-brand" href="#">USB API</a>
+                <a class="navbar-brand" href="<?= strtok($_SERVER["REQUEST_URI"],'?') ?>">USB API</a>
             </nav>
 <?php
     if (isset($_GET["action"]) == true){
@@ -60,18 +60,20 @@
             $caption = $_GET["caption"];
             $sizebytes = $_GET["sizebytes"];
 ?>
-<div class="container">
+<div class="container pt-sm-3">
 <h1>Querying the USB database</h1>
-<table>
+
+<div class="jumbotron p-sm-3">
 <?php if (strlen($serialnum) > 2) { ?>
-<tr><td>Serial Number: </td><td><?= $serialnum ?><span style='color:red'> (matching)</span></td></tr>
+<dl>
+<dt>Serial Number</dt><dd><?= $serialnum ?></dd>
 <?php } ?>
 
-<tr><td>Device ID: </td><td><?= $deviceid ?><span style='color:red'> (matching)</span></td></tr>
-<tr><td>Caption: </td><td><?= $caption ?><span style='color:red'> (matching)</span></td></tr>
-<tr><td><span style='color:grey'>Media Type:</span> </td><td> <span style='color:grey'><?= $mediatype ?></span></td></tr>
-<tr><td><span style='color:grey'>Actual Size:</span> </td><td> <span style='color:grey'><?= $sizebytes ?> bytes (<?= round(($sizebytes / 1024 /1024 /1024), 1, PHP_ROUND_HALF_UP) ?> GB)</span></td></tr>
-</table>
+<dt>Device ID</dt><dd><?= $deviceid ?></dd>
+<dt>Caption</dt><dd><?= $caption ?></dd>
+<dt>Reported Size <small>(not used for matching as varies between computers)</small></dt><dd><?= number_format($sizebytes) ?> bytes (<?= round(($sizebytes / 1000 / 1000 / 1000), 1, PHP_ROUND_HALF_UP) ?> GB / <?= round(($sizebytes / 1024 /1024 /1024), 1, PHP_ROUND_HALF_UP) ?> <a href="https://en.wikipedia.org/wiki/Gibibyte" target="_blank" nofollow>GiB</a>)</dd>
+</dl>
+</div>
 
 <?php
             $mysqli = new mysqli($db_host, $db_user, $db_password);
@@ -96,29 +98,37 @@
             
             // surface the values (if any) returned
             $cnt =  0;
+			echo '<table class="table table-hover table-sm devicelist text-nowrap"><thead class="thead-default"><tr><th>Date</th><th>Time</th><th>Computer</th><th>Username</th><th>Full Name</th></tr></thead>';
             while ($stmt->fetch()) {
                 // Intialise the $usernamecompare variable
                 if ($cnt == 0) {$usernamecompare = $username;}
                 // If the $usernamecompare variable should change populate the $multipleusername variable
                 if ($usernamecompare != $username) {$multipleusername = "Multiple usernames dectected!";}
                 // Output the user interaction details for this usb
-                echo "<span style='color:green'> <b>" . $date. "</b> " . $time . " Computername: " . $computername. "</span> <span style='color:blue'>User Details: <b>" . $username . "</b> (" . $fullname . ")</span><br />";
-                
+			if ($cnt == 10) {
+				echo '<tr data-toggle="collapse" data-target=".collapse" class="collapse show text-center alert-link"><td colspan="5"><a href=#">Show all records</a></td></tr>';
+			}
+?>
+<tr class="<?= $cnt >= 10 ? "collapse" : "" ?>">
+<td><?= $date ?></td>
+<td><?= $time ?></td>
+<td class="text-lowercase"><?= $computername ?></td>
+<td class="text-lowercase"><?= $username ?></td>
+<td><?= $fullname ?></td>
+</tr>
+<?php                
                 $cnt = $cnt + 1;
             }
             $stmt->close();
+			echo '</table>';
+
             
             // Display and record comfirmation that the USB device is NOT recorded
             if ($cnt == 0) {
-                echo "<span style='color:red'>This USB is an orphan.</span><br />";
-                if (strlen($serialnum) > 2) {
-                    echo "<b>NO</b> record exists for <b>" . $caption . " (" . $serialnum . ")</b> in the database.<br />";
-                } else {
-                    echo "<b>NO</b> record exists for <b>" . $caption . "</b> in the database.<br />";
-                }
-                echo "Note: Records are retained for 3 months only.<br />";
-                echo "<br />Returned: <b>" . $cnt . "</b> records. <span style='color:red'>" . $multipleusername . "</span><br />";
-                
+?>
+<div class="alert alert-danger" role="alert">No matching entries for this device were found in the database.</div>
+<div class="alert alert-warning"><strong>Note</strong> Records are retained for 3 months only.</div>
+<?php
                 // Insert a record of this query into the usb_device.returned table - $ownership = "False"
                 if (strlen($serialnum) > 2) {
                     // prepare and bind (Prepared statement!)
@@ -142,7 +152,6 @@
             
             // Display and record comfirmation that the USB device is on record - $ownership = "True"
             if ($cnt >= 1) {
-                echo "<br />Returned: <b>" . $cnt . "</b> records.<br />";
                 
                 // Insert a record of this query into the usb_device.returned table
                 if (strlen($serialnum) > 2) {
@@ -164,12 +173,13 @@
                     $stmt->close();
                 }
             }
+            echo "<p>Query returned <strong>" . $cnt . "</strong> records</p>";
         }
         mysqli_close ($mysqli);
         echo '</div>';
 
     } else {
-        // README - Explaination and instructions to display if there is no valid defined GET variable action (either "querydb" or "loaddb")
+        // README - Explanation and instructions to display if there is no valid defined GET variable action (either "querydb" or "loaddb")
 ?>
       <div class="jumbotron">
         <div class="container">
@@ -180,26 +190,23 @@
               <p>This API uses GET array variables to transfer values either INTO the database or to query FROM the database.</p>
               <p>When used in conjunction with a script that is able to interogate for metadata from a local USB device and user session, this service acts as an intermediary between the database and the user session script.</p>
               <p>Abstracting the database access details and using prepared statements within the API, means that the local script is simpler to code and the database is inherently more secure.</p>
-              <p>
-              <a class="btn btn-primary btn-lg" href="https://github.com/university-of-waikato-library/usb" role="button">View on GitHub »</a> <a class="btn btn-success btn-lg" rel="nofollow" href="https://github.com/university-of-waikato-library/usb/archive/master.zip" role="button">Download .zip</a>
-              </p>
-            </div>
+              <p><a class="btn btn-primary btn-lg" href="https://github.com/university-of-waikato-library/usb" role="button">View on GitHub »</a> <a class="btn btn-success btn-lg" rel="nofollow" href="https://github.com/university-of-waikato-library/usb/archive/master.zip" role="button">Download .zip</a></p>
+              </div>
           </div>
           <div class="container">
             <div class="row">
               <div class="col-md-6">
                 <h2>Recording a device</h2>
-                <p>To record a device, call the API with the parameters below from the recording script.</p>
-                <table>
-                  <tr><th>Parameter</th><th>Required</th><th>Comments</th></tr>
-                  <tr><td>action</td><td>✓</td><td>Must be <strong>loaddb</strong></td></tr>
+                <p>To record a device call the API with the parameters below.</p>
+                <table class="table table-sm">
+                  <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th><th>Comments</th></tr></thead>
+                  <tr><td>action</td><td class="text-center">✓</td><td>Must be <strong>loaddb</strong></td></tr>
                   <tr><td>serialnum</td><td></td><td>Used if it is more than 2 characters</td></tr>
-                  <tr><td>deviceid</td><td>✓</td><td></td></tr>
-                  <tr><td>caption</td><td>✓</td><td></td></tr>
-                  <tr><td>mediatype</td><td></td><td></td></tr>
+                  <tr><td>deviceid</td><td class="text-center">✓</td><td></td></tr>
+                  <tr><td>caption</td><td class="text-center">✓</td><td></td></tr>
                   <tr><td>sizebytes</td><td></td><td></td></tr>
-                  <tr><td>username</td><td>✓</td><td></td></tr>
-                  <tr><td>computername</td><td>✓</td><td></td></tr>
+                  <tr><td>username</td><td class="text-center">✓</td><td></td></tr>
+                  <tr><td>computername</td><td class="text-center">✓</td><td></td></tr>
                 </table>
                 <p>
                   <button type="button" class="btn btn-info" role="button" data-toggle="modal" data-target="#insertExample">Show example</button>
@@ -207,13 +214,13 @@
               </div>
               <div class="col-md-6">
                 <h2>Querying for devices</h2>
-                <p>To query a device, open the API in a browser with the parameters below.</p>
-                <table>
-                    <tr><th>Parameter</th><th>Required</th><th>Comments</th></tr>
-                    <tr><td>action</td><td>✓</td><td>Must be <strong>querydb</strong></td></tr>
+                <p>To query a device open the API in a browser with the parameters below.</p>
+                <table class="table table-sm">
+                    <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th><th>Comments</th></tr></thead>
+                    <tr><td>action</td><td class="text-center">✓</td><td>Must be <strong>querydb</strong></td></tr>
                     <tr><td>serialnum</td><td></td><td>Used if it is more than 2 characters</td></tr>
-                    <tr><td>deviceid</td><td>✓</td><td></td></tr>
-                    <tr><td>caption</td><td>✓</td><td></td></tr>
+                    <tr><td>deviceid</td><td class="text-center">✓</td><td></td></tr>
+                    <tr><td>caption</td><td class="text-center">✓</td><td></td></tr>
                     <tr><td>mediatype</td><td></td><td></td></tr>
                     <tr><td>sizebytes</td><td></td><td>Not recommended for matching as reported capacity may vary between computers</td></tr>
                 </table>
@@ -224,7 +231,7 @@
             </div>
             <hr>
             <footer>
-            <p><small>Developed and maintained by the University of Waikato Library Systems Team © 2017. <span class="text-muted"><a href="https://thenounproject.com/term/usb-flash-drive/50441/">USB drive icon</a> created by Alexandr Cherkinsky for The Noun Project.</span></small></p>
+            <p><small>Developed and maintained by the University of Waikato <a href="http://www.waikato.ac.nz/library/about/organisation/library-teams/library-systems-team">Library Systems Team</a> © 2017. <span class="text-muted"><a href="https://thenounproject.com/term/usb-flash-drive/50441/">USB drive icon</a> created by Alexandr Cherkinsky for The Noun Project.</span></small></p>
             </footer>
             </div>
             <!-- Modals for link previews -->
@@ -237,17 +244,17 @@
                       <span aria-hidden="true">&times;</span>
                     </button>
                   </div>
-                  <div class="modal-body" style="overflow: scroll">https://library.waikato.ac.nz/usb/index.php?<br>
-                    &nbsp;&nbsp;&nbsp;action=loaddb&<br>
-                    &nbsp;&nbsp;&nbsp;serialnum=6B0FA34143C9&<br>
-                    &nbsp;&nbsp;&nbsp;deviceid=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&<br>
-                    &nbsp;&nbsp;&nbsp;caption=Kingston%20DataTraveler%203.0%20USB%20Device&<br>
-                    &nbsp;&nbsp;&nbsp;sizebytes=62931617280&<br>
-                    &nbsp;&nbsp;&nbsp;computername=LIBY-COG2&<br>
-                    &nbsp;&nbsp;&nbsp;username=WAIKATO%5Cpstone</div>
+                  <div class="modal-body" style="overflow: scroll">https://<?= $_SERVER['HTTP_HOST'] . strtok($_SERVER["REQUEST_URI"],'?') ?>?<br>
+                    &nbsp;&nbsp;&nbsp;<strong>action</strong>=loaddb&<br>
+                    &nbsp;&nbsp;&nbsp;<strong>serialnum</strong>=6B0FA34143C9&<br>
+                    &nbsp;&nbsp;&nbsp;<strong>deviceid</strong>=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&<br>
+                    &nbsp;&nbsp;&nbsp;<strong>caption</strong>=Kingston%20DataTraveler%203.0%20USB%20Device&<br>
+                    &nbsp;&nbsp;&nbsp;<strong>sizebytes</strong>=62931617280&<br>
+                    &nbsp;&nbsp;&nbsp;<strong>computername</strong>=LIBY-COG2&<br>
+                    &nbsp;&nbsp;&nbsp;<strong>username</strong>=WAIKATO%5Cpstone</div>
                   <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <a class="btn btn-primary" href="https://library.waikato.ac.nz/usb/index.php?action=loaddb&serialnum=6B0FA34143C9&deviceid=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&caption=Kingston%20DataTraveler%203.0%20USB%20Device&sizebytes=62931617280&computername=LIBY-COG2&username=WAIKATO%5Cpstone">Try it »</a>
+                    <a class="btn btn-primary" href="https://library.waikato.ac.nz<?= strtok($_SERVER["REQUEST_URI"],'?') ?>?action=loaddb&serialnum=6B0FA34143C9&deviceid=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&caption=Kingston%20DataTraveler%203.0%20USB%20Device&sizebytes=62931617280&computername=LIBY-COG2&username=WAIKATO%5Cpstone">Try it »</a>
                   </div>
                 </div>
               </div>
@@ -262,15 +269,15 @@
                         <span aria-hidden="true">&times;</span>
                       </button>
                     </div>
-                    <div class="modal-body" style="overflow: scroll">https://library.waikato.ac.nz/usb/index.php?
-                        &nbsp;&nbsp;&nbsp;action=querydb&<br>
-                        &nbsp;&nbsp;&nbsp;serialnum=6B0FA34143C9&<br>
-                        &nbsp;&nbsp;&nbsp;deviceid=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&<br>
-                        &nbsp;&nbsp;&nbsp;caption=Kingston%20DataTraveler%203.0%20USB%20Device&<br>
-                        &nbsp;&nbsp;&nbsp;sizebytes=62931617280</div>
+                    <div class="modal-body" style="overflow: scroll">https://<?= $_SERVER['HTTP_HOST'] .  strtok($_SERVER["REQUEST_URI"],'?') ?>?<br>
+                        &nbsp;&nbsp;&nbsp;<strong>action</strong>=querydb&<br>
+                        &nbsp;&nbsp;&nbsp;<strong>serialnum</strong>=6B0FA34143C9&<br>
+                        &nbsp;&nbsp;&nbsp;<strong>deviceid</strong>=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&<br>
+                        &nbsp;&nbsp;&nbsp;<strong>caption</strong>=Kingston%20DataTraveler%203.0%20USB%20Device&<br>
+                        &nbsp;&nbsp;&nbsp;<strong>sizebytes</strong>=62931617280</div>
                     <div class="modal-footer">
                       <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                      <a class="btn btn-primary" href="https://library.waikato.ac.nz/usb/index.php?action=querydb&serialnum=6B0FA34143C9&deviceid=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&caption=Kingston%20DataTraveler%203.0%20USB%20Device&sizebytes=62931617280">Try it »</a>
+                      <a class="btn btn-primary" href="https://library.waikato.ac.nz<?= strtok($_SERVER["REQUEST_URI"],'?') ?>?action=querydb&serialnum=6B0FA34143C9&deviceid=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&caption=Kingston%20DataTraveler%203.0%20USB%20Device&sizebytes=62931617280">Try it »</a>
                     </div>
                   </div>
                 </div>
