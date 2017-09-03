@@ -1,132 +1,104 @@
 <?php
-// Author:          Peter Stone
-// Organisation:    University of Waikato
-// Department:      Library Systems Team
-// Purpose:         Acts as a simple API. Insert or displays user details associated with USB devices from data stored in a database compared to USB metadata
-// Date:            2017-04-13
+    // Author:        Peter Stone
+    // Organisation:  University of Waikato
+    // Department:    Library Systems Team
+    // Purpose:       Acts as a simple API to insert or display user details associated with USB devices recorded during user sessions in our labs
+    // Date:          2017-04-13
 
-/* Configuration */
-$db_host     = 'tui.liby.waikato.ac.nz';
-$db_user     = 'usbuser';
-$db_password = 'example';
-/* End configuration */
-?>
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="utf-8"/>
-        <title>USB API</title>
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
-    </head>
-    <body>
-            <nav class="navbar navbar-expand-md navbar-dark static-top bg-dark">
-                <a class="navbar-brand" href="<?= strtok($_SERVER["REQUEST_URI"], '?') ?>">USB API</a>
-            </nav>
-<?php
-if (isset($_GET["action"]) == true) {
-    // Establish the database connection
-    $mysqli = new mysqli($db_host, $db_user, $db_password);
-    if ($mysqli->connect_error) {
-        die('Connect Error (' . $mysqli->connect_errno . ') ' . $mysqli->connect_error);
-    }
-    
-    // LOAD data        
-    if ($_GET["action"] == "loaddb") {
-        // prepare and bind (Prepared statement!)
-        $stmt = $mysqli->prepare("INSERT INTO usb_device.storage (serialnum, deviceid, mediatype, caption, sizebytes, computername, username, date, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssssssss", $serialnum, $deviceid, $mediatype, $caption, $sizebytes, $computername, $username, $date, $time);
-        // set parameters and execute
-        // A legacy problem for some older "rubbish" USBs is that they do not provide a sensible value in the serial number field of the WMI query
-        // To avoid the issue we are only using this field if more than 2 digits are present...
-        if (strlen($_GET["serialnum"]) > 2) {
-            $serialnum = $_GET["serialnum"];
-        } else {
-            $serialnum = NULL;
-        }
-        $deviceid     = $_GET["deviceid"];
-        $mediatype    = $_GET["mediatype"];
-        $caption      = $_GET["caption"];
-        $sizebytes    = $_GET["sizebytes"];
-        $computername = $_GET["computername"];
-        $username     = $_GET["username"];
-        $date         = date("Y-m-d");
-        $time         = date("H:i:s");
-        $stmt->execute();
-        echo "New record created successfully";
-        $stmt->close();
-    }
-    
-    // RETURN/DISPLAY data (ALSO RECORDING SEARCH SUCCESS OR FAILURE)
-    if ($_GET["action"] == "querydb") {
-        // A legacy problem for some older USBs is that they do not return a sensible value in the serial number field, from the original WMI query
-        // To avoid the issue, we are only using this field if more than 2 digits are present...
-        if (strlen($_GET["serialnum"]) > 2) {
-            $serialnum = $_GET["serialnum"];
-        } else {
-            $serialnum = NULL;
-        }
-        $deviceid  = $_GET["deviceid"];
-        $mediatype = $_GET["mediatype"];
-        $caption   = $_GET["caption"];
-        $sizebytes = $_GET["sizebytes"];
-?>
-<div class="container pt-sm-3">
-<h1>Querying the USB database</h1>
+    // Modified
+    // 2017-08-31 - Fred Young (University of Waikato)
+    // Change summary:
+    // - Extracted database configuration to top of file
+    // - Bootstrap-ify front end and move large HTML blocks outside echo 'string' blocks
+    // - Removed duplication of database connection activity
+    // - Drop media type recording as reporting script doesn't submit results unless it's 'Removable Media'
+    // - Let database server provide date and time on inserts
+    // - Check if common arguments exist and populate them once at beginning of script
 
-<div class="jumbotron p-sm-3">
-<?php
-        if (strlen($serialnum) > 2) {
-?>
-<dl>
-<dt>Serial Number</dt><dd><?= $serialnum ?></dd>
-<?php
-        }
-?>
+    /* Configuration */
+    $db_host     = 'example-db-host.your-institution';
+    $db_user     = 'usbuser';
+    $db_password = 'example';
+    /* End configuration */
 
-<dt>Device ID</dt><dd><?= $deviceid ?></dd>
-<dt>Caption</dt><dd><?= $caption ?></dd>
-<dt>Reported Size <small>(not used for matching as varies between computers)</small></dt><dd><?= number_format($sizebytes) ?> bytes (<?= round(($sizebytes / 1000 / 1000 / 1000), 1, PHP_ROUND_HALF_UP) ?> GB / <?= round(($sizebytes / 1024 / 1024 / 1024), 1, PHP_ROUND_HALF_UP) ?> <a href="https://en.wikipedia.org/wiki/Gibibyte" target="_blank" nofollow>GiB</a>)</dd>
-</dl>
-</div>
+    $action = isset($_GET["action"]) ? $_GET["action"] : null;
 
-<?php
+    if ($action == 'querydb' || $action == 'loaddb') {
+        // Establish database connection if $action requires database access
         $mysqli = new mysqli($db_host, $db_user, $db_password);
         if ($mysqli->connect_error) {
             die('Connect Error (' . $mysqli->connect_errno . ') ' . $mysqli->connect_error);
         }
-        // Check connection
-        if ($mysqli->connect_error) {
-            die("Connection failed: " . $mysqli->connect_error);
-        }
-        
-        // Using the "incoming" variables, form the query to use in a prepared statement, adjusting the query for valid/invalid serial number. 
-        // NOT using the sizebytes field as different OS's (even different version of the same OS) calculate this value differently!!!!
-        if (strlen($serialnum) > 2) {
-            // prepare and bind (Prepared statement!)
-            $stmt = $mysqli->prepare("SELECT computername, username, fullname, date, time FROM usb_device.storage WHERE serialnum = ? AND deviceid = ? AND caption = ? ORDER BY date, time");
-            $stmt->bind_param("sss", $serialnum, $_GET["deviceid"], $caption);
-        } else {
-            // prepare and bind (Prepared statement!)
-            $stmt = $mysqli->prepare("SELECT computername, username, fullname, date, time FROM usb_device.storage WHERE deviceid = ? AND caption = ? ORDER BY date, time");
-            $stmt->bind_param("ss", $deviceid, $caption);
-        }
-        // execute statement and bind results to it
+
+        // Populate common variables from $_GET if they are set, otherwise make them null
+        $serialnum = isset($_GET["serialnum"]) && strlen($_GET["serialnum"]) > 2 ? $serialnum = $_GET["serialnum"] : null;
+        $deviceid     = isset($_GET["deviceid"]) ? $_GET["deviceid"] : null;
+        $caption      = isset($_GET["caption"]) ? $_GET["caption"] : null;
+        $sizebytes    = isset($_GET["sizebytes"]) ? $_GET["sizebytes"] : null;
+        $computername = isset($_GET["computername"]) ? $_GET["computername"] : null;
+        $username     = isset($_GET["username"]) ? $_GET["username"] : null;
+    }
+?>
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>USB API</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-md navbar-dark static-top bg-dark">
+    <a class="navbar-brand" href="<?= strtok($_SERVER['REQUEST_URI'], '?') ?>">USB API</a>
+  </nav>
+<?php
+    if ($action == 'loaddb') {
+
+        // INSERT BEGIN
+        // Insert a new device sighting into the database
+
+        $stmt = $mysqli->prepare("INSERT INTO usb_device.storage (serialnum, deviceid, caption, sizebytes, computername, username, date, time) VALUES (?, ?, ?, ?, ?, ?, now(), now())");
+        $stmt->bind_param("ssssss", $serialnum, $deviceid, $caption, $sizebytes, $computername, $username);
+        // Some poor quality USB devices may not return a valid serial number. A common problem appears to be devices which return a couple random bytes of binary data instead of a string. As these values are treated as only a character or two, we discard serial numbers which are very short.
+        $stmt->execute();
+        echo '<div class="alert alert-success">New record inserted.</div>';
+        $stmt->close();
+        // INSERT END
+    } elseif ($action == 'querydb') {
+
+        // QUERY BEGIN
+        // Query the database for a device
+
+?>
+<div class="container pt-sm-3">
+  <h1>Querying the USB database</h1>
+
+  <div class="jumbotron p-sm-3">
+    <dl>
+          <dt>Serial Number</dt>
+          <dd><?= $serialnum ? $serialnum : '<span class="bg-warning">invalid or not present</span>' ?></dd>
+          <dt>Device ID</dt>
+          <dd><?= $deviceid ?></dd>
+          <dt>Caption</dt>
+          <dd><?= $caption ?></dd>
+          <dt>Reported Size <small>(not used for matching as varies between computers)</small></dt>
+          <dd><?= number_format($sizebytes) ?> bytes (<?= round(($sizebytes / 1000 / 1000 / 1000), 1, PHP_ROUND_HALF_UP) ?> GB / <?= round(($sizebytes / 1024 / 1024 / 1024), 1, PHP_ROUND_HALF_UP) ?> <a href="https://en.wikipedia.org/wiki/Gibibyte" target="_blank" nofollow>GiB</a>)</dd>
+    </dl>
+  </div>
+
+<?php
+        // Prepare the query with the GET parameters provided
+        // Note: The size is never used as different OS versions (even different builds of Windows 10) return slightly differing sizes for the volume
+        $stmt = $mysqli->prepare("SELECT computername, username, fullname, date, time FROM usb_device.storage WHERE (serialnum = ? OR serialnum is null) AND deviceid = ? AND caption = ? ORDER BY date, time");
+        $stmt->bind_param("sss", $serialnum, $deviceid, $caption);
         $stmt->execute();
         $stmt->bind_result($computername, $username, $fullname, $date, $time);
-        
-        // surface the values (if any) returned
+
         $cnt = 0;
         echo '<table class="table table-hover table-sm devicelist text-nowrap"><thead class="thead-default"><tr><th>Date</th><th>Time</th><th>Computer</th><th>Username</th><th>Full Name</th></tr></thead>';
         while ($stmt->fetch()) {
-            // Intialise the $usernamecompare variable
-            if ($cnt == 0) {
-                $usernamecompare = $username;
-            }
-            // If the $usernamecompare variable should change populate the $multipleusername variable
-            if ($usernamecompare != $username) {
-                $multipleusername = "Multiple usernames dectected!";
-            }
-            // Output the user interaction details for this usb
+            // For more than 10 results, display a special row, and suppress any further records
             if ($cnt == 10) {
                 echo '<tr data-toggle="collapse" data-target=".collapse" class="collapse show text-center alert-link"><td colspan="5"><a href=#">Show all records</a></td></tr>';
             }
@@ -143,73 +115,32 @@ if (isset($_GET["action"]) == true) {
         }
         $stmt->close();
         echo '</table>';
-        
-        
-        // Display and record comfirmation that the USB device is NOT recorded
+
+        // Tell user that device was not found if no results were returned
         if ($cnt == 0) {
 ?>
 <div class="alert alert-danger" role="alert">No matching entries for this device were found in the database.</div>
 <div class="alert alert-warning"><strong>Note</strong> Records are retained for 3 months only.</div>
 <?php
-            // Insert a record of this query into the usb_device.returned table - $ownership = "False"
-            if (strlen($serialnum) > 2) {
-                // prepare and bind (Prepared statement!)
-                $stmt = $mysqli->prepare("INSERT INTO usb_device.returned (serialnum, deviceid, mediatype, caption, sizebytes, date, time, ownership) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("ssssssss", $serialnum, $deviceid, $mediatype, $caption, $sizebytes, $date, $time, $ownership);
-                // set parameters and execute
-                // A legacy problem for some older "rubbish" USBs is that they do not provide a sensible value in the serial number field of the WMI query
-                // To avoid the issue we are only using this field if more than 2 digits are present...
-                if (strlen($_GET["serialnum"]) > 2) {
-                    $serialnum = $_GET["serialnum"];
-                } else {
-                    $serialnum = NULL;
-                }
-                $deviceid  = $_GET["deviceid"];
-                $mediatype = $_GET["mediatype"];
-                $caption   = $_GET["caption"];
-                $sizebytes = $_GET["sizebytes"];
-                $date      = date("Y-m-d");
-                $time      = date("H:i:s");
-                $ownership = "False";
-                $stmt->execute();
-                $stmt->close();
-            }
         }
-        
-        // Display and record comfirmation that the USB device is on record - $ownership = "True"
-        if ($cnt >= 1) {
-            
-            // Insert a record of this query into the usb_device.returned table
-            if (strlen($serialnum) > 2) {
-                // prepare and bind (Prepared statement!)
-                $stmt = $mysqli->prepare("INSERT INTO usb_device.returned (serialnum, deviceid, mediatype, caption, sizebytes, date, time, ownership) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("ssssssss", $serialnum, $deviceid, $mediatype, $caption, $sizebytes, $date, $time, $ownership);
-                // set parameters and execute
-                // A legacy problem for some older "rubbish" USBs is that they do not provide a sensible value in the serial number field of the WMI query
-                // To avoid the issue we are only using this field if more than 2 digits are present...
-                if (strlen($_GET["serialnum"]) > 2) {
-                    $serialnum = $_GET["serialnum"];
-                } else {
-                    $serialnum = NULL;
-                }
-                $deviceid  = $_GET["deviceid"];
-                $mediatype = $_GET["mediatype"];
-                $caption   = $_GET["caption"];
-                $sizebytes = $_GET["sizebytes"];
-                $date      = date("Y-m-d");
-                $time      = date("H:i:s");
-                $ownership = "True";
-                $stmt->execute();
-                $stmt->close();
-            }
-        }
+
+        // Insert a record of this query into the usb_device.returned table
+        $stmt = $mysqli->prepare("INSERT INTO usb_device.returned (serialnum, deviceid, caption, sizebytes, ownership, date, time) VALUES (?, ?, ?, ?, ?, now(), now())");
+        $stmt->bind_param("sssss", $serialnum, $deviceid, $caption, $sizebytes, $ownership);
+        // Record device as having a known owner if there were entries for this device in the database when queried
+        $ownership = $cnt == 0 ? "False" : "True";
+        $stmt->execute();
+        $stmt->close();
+
         echo "<p>Query returned <strong>" . $cnt . "</strong> records</p>";
-    }
-    mysqli_close($mysqli);
-    echo '</div>';
-    
+        mysqli_close($mysqli);
+        echo '</div>';
+    // QUERY END
 } else {
-    // README - Explanation and instructions to display if there is no valid defined GET variable action (either "querydb" or "loaddb")
+
+    // README BEGIN
+    // Explanation and instructions to display if $action is not "querydb" or "loaddb"
+
 ?>
      <div class="jumbotron">
         <div class="container">
@@ -227,7 +158,6 @@ if (isset($_GET["action"]) == true) {
             <div class="row">
               <div class="col-md-6">
                 <h2>Recording a device</h2>
-                <p>To record a device call the API with the parameters below.</p>
                 <table class="table table-sm">
                   <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th><th>Comments</th></tr></thead>
                   <tr><td>action</td><td class="text-center">✓</td><td>Must be <strong>loaddb</strong></td></tr>
@@ -238,25 +168,21 @@ if (isset($_GET["action"]) == true) {
                   <tr><td>username</td><td class="text-center">✓</td><td></td></tr>
                   <tr><td>computername</td><td class="text-center">✓</td><td></td></tr>
                 </table>
-                <p>
-                  <button type="button" class="btn btn-info" role="button" data-toggle="modal" data-target="#insertExample">Show example</button>
-                </p>
+                <p>To record a device call the API with the parameters above.</p>
+                <p><button type="button" class="btn btn-info" role="button" data-toggle="modal" data-target="#insertExample">Show example</button></p>
               </div>
               <div class="col-md-6">
                 <h2>Querying for devices</h2>
-                <p>To query a device open the API in a browser with the parameters below.</p>
                 <table class="table table-sm">
                     <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th><th>Comments</th></tr></thead>
                     <tr><td>action</td><td class="text-center">✓</td><td>Must be <strong>querydb</strong></td></tr>
                     <tr><td>serialnum</td><td></td><td>Used if it is more than 2 characters</td></tr>
                     <tr><td>deviceid</td><td class="text-center">✓</td><td></td></tr>
                     <tr><td>caption</td><td class="text-center">✓</td><td></td></tr>
-                    <tr><td>mediatype</td><td></td><td></td></tr>
-                    <tr><td>sizebytes</td><td></td><td>Not recommended for matching as reported capacity may vary between computers</td></tr>
+                    <tr><td>sizebytes</td><td></td><td>Not used for matching<br><small>WMI reports different values between OS builds</small></td></tr>
                 </table>
-                <p>
-                    <button type="button" class="btn btn-info" role="button" data-toggle="modal" data-target="#queryExample">Show example</button>
-                </p>
+                <p>To query a device open the API in a browser with the parameters above.</p>
+                <p><button type="button" class="btn btn-info" role="button" data-toggle="modal" data-target="#queryExample">Show example</button></p>
               </div>
             </div>
             <hr>
@@ -274,7 +200,7 @@ if (isset($_GET["action"]) == true) {
                       <span aria-hidden="true">&times;</span>
                     </button>
                   </div>
-                  <div class="modal-body" style="overflow: scroll">https://<?= $_SERVER['HTTP_HOST'] . strtok($_SERVER["REQUEST_URI"], '?') ?>?<br>
+                  <div class="modal-body" style="overflow: scroll">https://<?= $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?') ?>?<br>
                     &nbsp;&nbsp;&nbsp;<strong>action</strong>=loaddb&<br>
                     &nbsp;&nbsp;&nbsp;<strong>serialnum</strong>=6B0FA34143C9&<br>
                     &nbsp;&nbsp;&nbsp;<strong>deviceid</strong>=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&<br>
@@ -299,7 +225,7 @@ if (isset($_GET["action"]) == true) {
                         <span aria-hidden="true">&times;</span>
                       </button>
                     </div>
-                    <div class="modal-body" style="overflow: scroll">https://<?= $_SERVER['HTTP_HOST'] . strtok($_SERVER["REQUEST_URI"], '?') ?>?<br>
+                    <div class="modal-body" style="overflow: scroll">https://<?= $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?') ?>?<br>
                         &nbsp;&nbsp;&nbsp;<strong>action</strong>=querydb&<br>
                         &nbsp;&nbsp;&nbsp;<strong>serialnum</strong>=6B0FA34143C9&<br>
                         &nbsp;&nbsp;&nbsp;<strong>deviceid</strong>=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&<br>
@@ -307,12 +233,13 @@ if (isset($_GET["action"]) == true) {
                         &nbsp;&nbsp;&nbsp;<strong>sizebytes</strong>=62931617280</div>
                     <div class="modal-footer">
                       <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                      <a class="btn btn-primary" href="https://library.waikato.ac.nz<?= strtok($_SERVER["REQUEST_URI"], '?') ?>?action=querydb&serialnum=6B0FA34143C9&deviceid=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&caption=Kingston%20DataTraveler%203.0%20USB%20Device&sizebytes=62931617280">Try it »</a>
+                      <a class="btn btn-primary" href="https://library.waikato.ac.nz<?= strtok($_SERVER['REQUEST_URI'], '?') ?>?action=querydb&serialnum=6B0FA34143C9&deviceid=USBSTOR%5CDISK%26VEN_KINGSTON%26PROD_DATATRAVELER_3.0%26REV_PMAP%5C60A44C425294BF3139824519%260&caption=Kingston%20DataTraveler%203.0%20USB%20Device&sizebytes=62931617280">Try it »</a>
                     </div>
                   </div>
                 </div>
               </div>
 <?php
+    // README END
 }
 ?>
        <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
