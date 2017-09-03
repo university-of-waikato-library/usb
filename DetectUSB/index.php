@@ -149,40 +149,46 @@
             <p class="lead">This API is for updating a database with user data and the metadata of their USB storage devices or querying the database to match a USB device metadata to a user.</p>
             <hr>
               <p>This API uses GET array variables to transfer values either INTO the database or to query FROM the database.</p>
-              <p>When used in conjunction with a script that is able to interogate for metadata from a local USB device and user session, this service acts as an intermediary between the database and the user session script.</p>
-              <p>Abstracting the database access details and using prepared statements within the API, means that the local script is simpler to code and the database is inherently more secure.</p>
+              <p>When used in conjunction with a script that is able to interogate for metadata from a local USB device and user session this service acts as an intermediary between the database and the user session script.</p>
+              <p>Abstracting the database access details and using prepared statements within the API means that the local script is simpler to code and the database is inherently more secure.</p>
               <p><a class="btn btn-primary btn-lg" href="https://github.com/university-of-waikato-library/usb" role="button">View on GitHub »</a> <a class="btn btn-success btn-lg" rel="nofollow" href="https://github.com/university-of-waikato-library/usb/archive/master.zip" role="button">Download .zip</a></p>
               </div>
           </div>
           <div class="container">
             <div class="row">
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <h2>Recording a device</h2>
                 <table class="table table-sm">
-                  <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th><th>Comments</th></tr></thead>
-                  <tr><td>action</td><td class="text-center">✓</td><td>Must be <strong>loaddb</strong></td></tr>
-                  <tr><td>serialnum</td><td></td><td>Used if it is more than 2 characters</td></tr>
-                  <tr><td>deviceid</td><td class="text-center">✓</td><td></td></tr>
-                  <tr><td>caption</td><td class="text-center">✓</td><td></td></tr>
-                  <tr><td>sizebytes</td><td></td><td></td></tr>
-                  <tr><td>username</td><td class="text-center">✓</td><td></td></tr>
-                  <tr><td>computername</td><td class="text-center">✓</td><td></td></tr>
+                  <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th></tr></thead>
+                  <tr><td>action</td><td class="text-center">✓</td></tr>
+                  <tr><td>serialnum</td><td></td></tr>
+                  <tr><td>deviceid</td><td class="text-center">✓</td></tr>
+                  <tr><td>caption</td><td class="text-center">✓</td></tr>
+                  <tr><td>sizebytes</td><td></td></tr>
+                  <tr><td>username</td><td class="text-center">✓</td></tr>
+                  <tr><td>computername</td><td class="text-center">✓</td></tr>
                 </table>
                 <p>To record a device call the API with the parameters above.</p>
                 <p><button type="button" class="btn btn-info" role="button" data-toggle="modal" data-target="#insertExample">Show example</button></p>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <h2>Querying for devices</h2>
                 <table class="table table-sm">
-                    <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th><th>Comments</th></tr></thead>
-                    <tr><td>action</td><td class="text-center">✓</td><td>Must be <strong>querydb</strong></td></tr>
-                    <tr><td>serialnum</td><td></td><td>Used if it is more than 2 characters</td></tr>
-                    <tr><td>deviceid</td><td class="text-center">✓</td><td></td></tr>
-                    <tr><td>caption</td><td class="text-center">✓</td><td></td></tr>
-                    <tr><td>sizebytes</td><td></td><td>Not used for matching<br><small>WMI reports different values between OS builds</small></td></tr>
+                    <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th></tr></thead>
+                    <tr><td>action</td><td class="text-center">✓</td></tr>
+                    <tr><td>serialnum</td><td></td></tr>
+                    <tr><td>deviceid</td><td class="text-center">✓</td></tr>
+                    <tr><td>caption</td><td class="text-center">✓</td></tr>
+                    <tr><td>sizebytes</td><td></td></tr>
                 </table>
                 <p>To query a device open the API in a browser with the parameters above.</p>
                 <p><button type="button" class="btn btn-info" role="button" data-toggle="modal" data-target="#queryExample">Show example</button></p>
+              </div>
+              <div class="col-md-4">
+                <h2>Notes</h2>
+                <p><code>action</code> must be <strong>loaddb</strong> to insert a device and <strong>querydb</strong> to query for a device.</p>
+                <p><code>serialnum</code> is only used when longer than two characters. A fair number of devices, particularly no name, return junk instead of a serial number.</p>
+                <p><code>sizebytes</code> is stored if provided but not used when querying devices. The number of bytes reported for a device varies between different builds of the same version of Windows so we couldn't rely on the computer querying the device to provide the same value as when it was recorded.</p>
               </div>
             </div>
             <hr>
