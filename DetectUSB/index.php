@@ -4,10 +4,10 @@
     // Department:    Library Systems Team
     // Purpose:       Acts as a simple API to insert or display user details associated with USB devices recorded during user sessions in our labs
     // Date:          2017-04-13
+    // Version:       1.1
 
-    // Modified
-    // 2017-08-31 - Fred Young (University of Waikato)
-    // Change summary:
+    // History
+    // 1.1 - 2017-08-31 - Fred Young (University of Waikato)
     // - Extracted database configuration to top of file
     // - Bootstrap-ify front end and move large HTML blocks outside echo 'string' blocks
     // - Removed duplication of database connection activity
@@ -59,8 +59,8 @@
         // INSERT BEGIN
         // Insert a new device sighting into the database
 
-        $stmt = $mysqli->prepare("INSERT INTO usb_device.storage (serialnum, deviceid, caption, sizebytes, computername, username, date, time) VALUES (?, ?, ?, ?, ?, ?, now(), now())");
-        $stmt->bind_param("ssssss", $serialnum, $deviceid, $caption, $sizebytes, $computername, $username);
+        $stmt = $mysqli->prepare("INSERT INTO usb_device.storage (serialnum, deviceid, caption, sizebytes, computername, username) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssiss", $serialnum, $deviceid, $caption, $sizebytes, $computername, $username);
         // Some poor quality USB devices may not return a valid serial number. A common problem appears to be devices which return a couple random bytes of binary data instead of a string. As these values are treated as only a character or two, we discard serial numbers which are very short.
         $stmt->execute();
         echo '<div class="alert alert-success">New record inserted.</div>';
@@ -126,8 +126,8 @@
         }
 
         // Insert a record of this query into the usb_device.returned table
-        $stmt = $mysqli->prepare("INSERT INTO usb_device.returned (serialnum, deviceid, caption, sizebytes, ownership, date, time) VALUES (?, ?, ?, ?, ?, now(), now())");
-        $stmt->bind_param("sssss", $serialnum, $deviceid, $caption, $sizebytes, $ownership);
+        $stmt = $mysqli->prepare("INSERT INTO usb_device.returned (serialnum, deviceid, caption, sizebytes, ownership) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssis", $serialnum, $deviceid, $caption, $sizebytes, $ownership);
         // Record device as having a known owner if there were entries for this device in the database when queried
         $ownership = $cnt == 0 ? "False" : "True";
         $stmt->execute();
@@ -165,7 +165,7 @@
                   <tr><td>serialnum</td><td></td></tr>
                   <tr><td>deviceid</td><td class="text-center">✓</td></tr>
                   <tr><td>caption</td><td class="text-center">✓</td></tr>
-                  <tr><td>sizebytes</td><td></td></tr>
+                  <tr><td>sizebytes</td><td class="text-center">✓</td></tr>
                   <tr><td>username</td><td class="text-center">✓</td></tr>
                   <tr><td>computername</td><td class="text-center">✓</td></tr>
                 </table>
@@ -189,7 +189,7 @@
                 <h2>Notes</h2>
                 <p><code>action</code> must be <strong>loaddb</strong> to insert a device or <strong>querydb</strong> to query for a device.</p>
                 <p><code>serialnum</code> is only used when longer than two characters. A fair number of devices, particularly no name, return junk instead of a serial number.</p>
-                <p><code>sizebytes</code> is stored if provided but not used when querying devices. The number of bytes reported for a device varies between different builds of the same version of Windows so we couldn't rely on the computer querying the device to provide the same value as when it was recorded.</p>
+                <p><code>sizebytes</code> is stored but not currently used when querying devices. The number of bytes reported for a device varies between different builds of the same version of Windows so we couldn't rely on the computer querying the device to provide the same value as when it was recorded.</p>
               </div>
             </div>
             <hr>
