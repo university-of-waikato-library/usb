@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 5.7.18, for Linux (x86_64)
+-- MySQL dump 10.16  Distrib 10.2.8-MariaDB, for Linux (x86_64)
 --
 -- Host: localhost    Database: usb_device
 -- ------------------------------------------------------
--- Server version	5.5.52-MariaDB
+-- Server version	10.2.8-MariaDB-log
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -15,7 +15,12 @@
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE  IF NOT EXISTS `usb_device` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;
+--
+-- Current Database: `usb_device`
+--
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `usb_device` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;
+
 USE `usb_device`;
 
 --
@@ -26,15 +31,19 @@ DROP TABLE IF EXISTS `returned`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `returned` (
-  `serialnum` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `deviceid` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `mediatype` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `caption` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `sizebytes` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `date` date DEFAULT NULL,
-  `time` time DEFAULT NULL,
-  `ownership` varchar(5) COLLATE utf8mb4_unicode_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `serialnum` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `deviceid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `caption` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sizebytes` bigint(20) NOT NULL,
+  `date` date NOT NULL DEFAULT current_timestamp(),
+  `time` time NOT NULL DEFAULT current_timestamp(),
+  `ownership` varchar(5) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `timestamp` (`date`,`time`),
+  KEY `device_wo_serial` (`deviceid`,`caption`),
+  KEY `device_w_serial` (`deviceid`,`caption`,`serialnum`)
+) ENGINE=InnoDB AUTO_INCREMENT=80 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -45,16 +54,21 @@ DROP TABLE IF EXISTS `storage`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `storage` (
-  `serialnum` varchar(45) CHARACTER SET utf8 DEFAULT NULL,
-  `deviceid` varchar(120) DEFAULT NULL,
-  `mediatype` varchar(20) DEFAULT NULL,
-  `caption` varchar(45) DEFAULT NULL,
-  `sizebytes` varchar(45) DEFAULT NULL,
-  `computername` varchar(20) DEFAULT NULL,
-  `username` varchar(15) DEFAULT NULL,
-  `date` date DEFAULT NULL,
-  `time` time DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `serialnum` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `deviceid` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `caption` varchar(60) CHARACTER SET utf8mb4 NOT NULL,
+  `sizebytes` bigint(20) NOT NULL,
+  `computername` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+  `username` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+  `date` date NOT NULL DEFAULT current_timestamp(),
+  `time` time NOT NULL DEFAULT current_timestamp(),
+  `fullname` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `timestamp` (`date`,`time`),
+  KEY `device_w_serial` (`deviceid`,`caption`,`serialnum`),
+  KEY `device_wo_serial` (`deviceid`,`caption`)
+) ENGINE=MyISAM AUTO_INCREMENT=13005 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -66,4 +80,4 @@ CREATE TABLE `storage` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-06-06  8:25:13
+-- Dump completed on 2017-09-04 10:54:32
