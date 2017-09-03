@@ -43,7 +43,7 @@ CREATE TABLE `returned` (
   KEY `timestamp` (`date`,`time`),
   KEY `device_wo_serial` (`deviceid`,`caption`),
   KEY `device_w_serial` (`deviceid`,`caption`,`serialnum`)
-) ENGINE=InnoDB AUTO_INCREMENT=80 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -68,7 +68,7 @@ CREATE TABLE `storage` (
   KEY `timestamp` (`date`,`time`),
   KEY `device_w_serial` (`deviceid`,`caption`,`serialnum`),
   KEY `device_wo_serial` (`deviceid`,`caption`)
-) ENGINE=MyISAM AUTO_INCREMENT=13005 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
