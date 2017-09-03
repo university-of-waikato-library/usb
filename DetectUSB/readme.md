@@ -4,7 +4,7 @@ The files in the DetectUSB directory support a USB storage device data collectio
 
 ## Database
 
-Import the provided schema in "USB_Device_20170606.sql" on a MySQL/MariaDB server.
+Import the provided schema in `USB_Device.sql` on a MySQL/MariaDB server.
 
 You will need to create an account with `select` and `insert` privileges for the web API script.
 
@@ -29,7 +29,7 @@ The alternate or second part will see if it can match a single USBs data to data
 
 There are some conditional lines which will need adjusting for your local environment (lines 33, 36, 91 and 144)
 
-#### For "normal" data harvesting operations
+### For data harvesting operation
 
 The script is written in a way that allows flexibility in how it can be called.
 The easiest way is to use Group Policy.
@@ -41,7 +41,7 @@ It can be run:
 
 In both cases active querying occurs at 5 minute intervals.
 
-#### To check for the owner of a USB
+### To check for the owner of a USB
 
 Normal setup is to have a shortcut on the desktop of selected front desk PCs.
 The shortcut calls `PowerShell.exe` with two arguments:  
