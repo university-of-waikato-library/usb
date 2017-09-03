@@ -157,8 +157,8 @@
           </div>
           <div class="container">
             <div class="row">
-              <div class="col-md-4">
-                <h2>Recording a device</h2>
+              <div class="col-md-3">
+                <h2>Inserting</h2>
                 <table class="table table-sm">
                   <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th></tr></thead>
                   <tr><td>action</td><td class="text-center">✓</td></tr>
@@ -172,8 +172,8 @@
                 <p>To record a device call the API with the parameters above.</p>
                 <p><button type="button" class="btn btn-info" role="button" data-toggle="modal" data-target="#insertExample">Show example</button></p>
               </div>
-              <div class="col-md-4">
-                <h2>Querying for devices</h2>
+              <div class="col-md-3">
+                <h2>Querying</h2>
                 <table class="table table-sm">
                     <thead class="thead-default"><tr><th>Parameter</th><th class="text-center">Required</th></tr></thead>
                     <tr><td>action</td><td class="text-center">✓</td></tr>
@@ -185,9 +185,9 @@
                 <p>To query a device open the API in a browser with the parameters above.</p>
                 <p><button type="button" class="btn btn-info" role="button" data-toggle="modal" data-target="#queryExample">Show example</button></p>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6">
                 <h2>Notes</h2>
-                <p><code>action</code> must be <strong>loaddb</strong> to insert a device and <strong>querydb</strong> to query for a device.</p>
+                <p><code>action</code> must be <strong>loaddb</strong> to insert a device or <strong>querydb</strong> to query for a device.</p>
                 <p><code>serialnum</code> is only used when longer than two characters. A fair number of devices, particularly no name, return junk instead of a serial number.</p>
                 <p><code>sizebytes</code> is stored if provided but not used when querying devices. The number of bytes reported for a device varies between different builds of the same version of Windows so we couldn't rely on the computer querying the device to provide the same value as when it was recorded.</p>
               </div>
