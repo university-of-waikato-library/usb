@@ -1,7 +1,7 @@
-# Author:		Peter Stone
-# Organisation:	University of Waikatio 
-# Department:	Library Systems Team
-# Purpose: 		To insert or display the user details associated with USB devices from data stored in a database.
+# Author:       Peter Stone
+# Organisation:	University of Waikato
+# Department:   Library Systems Team
+# Purpose:      To insert or display the user details associated with USB devices from data stored in a database.
 # Intended use: University computer equipment especially "public" computers where users often leave USB devises behind.
 # Date:         2017-04-13 (Rewritten from an orginal concept script written 2016-03-03)
 
