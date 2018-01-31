@@ -50,6 +50,11 @@ if ($normalUSBdetection -eq $true) {
                     $USBdatalines += $SN + '|' + ($usbobject.pnpdeviceid).replace('|', '_') + '|' + $usbobject.mediatype + '|' + $usbobject.caption + '|' + $usbobject.size
                 }
 
+                # Some USB devices have been seen to use NONunicode characters causing interpretation conflicts when comparing previously written data to incoming data. 
+                # To manage this situation we are writing incoming USB data to a temp file at C:\Users\Public\USB.tmp and then reading it back in to the array BEFORE it is used for comparison 
+                $USBdatalines | Out-File C:\Users\Public\USB.tmp -Encoding ascii; $USBdatalines = @()
+                $USBdatalines = Get-Content C:\Users\Public\USB.tmp; Remove-Item C:\Users\Public\USB.tmp -Force
+
                 foreach ($USBdataline in $USBdatalines) {
                     # Filter for devices previously "seen" on this pc (loaded to $previousUSBs array).
                     if ($previousUSBs -ne $null) {
@@ -117,7 +122,7 @@ if ($usbDBquery -eq $true) {
         $SerialNumbers = @(); $pnpdeviceIDs = @(); $SmediaTypes = @(); $Captions = @(); $Sizes = @()
         foreach ($usbobject in $USBdetails) {
             # Rationalise the usb data confirming NULL entries in serialNUMs... OR  single digit entries to NULL
-            # BASICLY to be used a serial number has to have more than one character or number.....
+            # BASICLLY to be used a serial number has to have more than one character or number.....
             if (($usbobject.serialnumber).length -le 1) {$SN = $null} else {$SN = $usbobject.serialnumber}
             # Ensure that the "|" pipe is NOT used in the string for the Device ID
             $USBdatalines += $SN + '|' + ($usbobject.pnpdeviceid).replace('|', '_') + '|' + $usbobject.mediatype + '|' + $usbobject.caption + '|' + $usbobject.size
@@ -161,7 +166,7 @@ if ($usbDBquery -eq $true) {
                 } else {
                     # Call the API invoking the default browser Using a .NET static function 
                     # (Doing this is less certain that just opening in chrome and this may only work on Windows 10 in any case...)
-                    [Diagnostics.Process]::Start($url,’arguments‘)
+                    [Diagnostics.Process]::Start($url,'arguments')
                 }
             }
         }
