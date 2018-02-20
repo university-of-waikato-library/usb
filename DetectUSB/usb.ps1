@@ -38,7 +38,7 @@ if ($normalUSBdetection -eq $true) {
             if (Test-Path C:\Users\Public\USB.txt) {$previousUSBs = get-content C:\Users\Public\USB.txt; Remove-Item  C:\Users\Public\USB.txt -Force}
             
             # Get the details of any USB storage devices connected to the PC
-            $USBdetails = get-wmiobject win32_diskdrive | ? { $_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*' }
+            $USBdetails = get-wmiobject win32_diskdrive | ? { ($_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*') -or ($_.mediatype -eq 'External hard disk media') }            if ($USBdetails -ne $null) {
             if ($USBdetails -ne $null) {
                 # Allowing for multiple USB storage devices - load arrays with the device data
                 $SerialNumbers = @(); $pnpdeviceIDs = @(); $SmediaTypes = @(); $Captions = @(); $Sizes = @()
@@ -116,7 +116,7 @@ if ($normalUSBdetection -eq $true) {
 
 if ($usbDBquery -eq $true) {
     # Get the details of any USB storage devices connected to the PC
-    $USBdetails = get-wmiobject win32_diskdrive | ? { $_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*' }
+    $USBdetails = get-wmiobject win32_diskdrive | ? { ($_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*') -or ($_.mediatype -eq 'External hard disk media') }            if ($USBdetails -ne $null) {
     if ($USBdetails -ne $null) {
         # Allowing for multiple USB storage devices - load arrays with the device data
         $SerialNumbers = @(); $pnpdeviceIDs = @(); $SmediaTypes = @(); $Captions = @(); $Sizes = @()
