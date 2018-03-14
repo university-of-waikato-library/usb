@@ -17,99 +17,86 @@ if ($args[0] -eq $null) {$normalUSBdetection = $true} else {$usbDBquery = $true}
         
 # Only perform a data export IF the username returned is a WAIKATO domain user
 if ($normalUSBdetection -eq $true) {
-    ##write-host -f Yellow "Normal detection..." (get-date -format "yyyy-MM-dd HH:mm:ss")
-    # Intial delay to push first detection off for one minute from the script starting
-    start-sleep 6
+    write-host (get-date -format s) " Beginning USB DETECTION script..."
     
-    # Begin an "endless loop" that will pause every 5 minutes... (as $x is never assigned '0" in the "while" loop)
-    while ($x -ne 0) {
-        $USBdetails = @(); $previousUSBs = @(); $USBdatalines = @(); $fileoutput = @(); $USBdatabaselines = @()
+    # Register the WMI event class to use
+    Register-WmiEvent -Class win32_DeviceChangeEvent -SourceIdentifier deviceChange
+    
+    # Begin an "endless loop"
+    $previousUSBdetails = $null
+    while (1 -eq 1) {
+        # Establish a new Wait Event object...
+        $newEvent = Wait-Event -SourceIdentifier deviceChange
+        $eventType = $newEvent.SourceEventArgs.NewEvent.EventType
+        $eventTypeName = switch($eventType) {
+            1 {"Configuration changed"}
+            2 {"Device arrival"}
+            3 {"Device removal"}
+            4 {"docking"}
+        }
         
-        # Extract the logged on user (if any) using the "Win32_ComputerSystem" namespace in WMI 
-        # Doing it this way allows this script to run as under Computer Configuration or User Configuration in Group Policy
-        $colItems = get-wmiobject -class "Win32_ComputerSystem" -namespace "root\CIMV2" -computername $env:computername
-        $loggedonuser = $null; foreach ($objItem in $colItems) {$loggedonuser = $objItem.UserName}
-        # "Belt and braces" here - confiming a "valid" username is deduced... (really for only if the script is run at logon...)
-        if (!($loggedonuser -like 'WAIKATO\*')) {if ($env:USERDOMAIN -eq 'WAIKATO') {$loggedonuser = $env:USERDOMAIN + "\" + $env:USERNAME}}
+        # Process ONLY device arrivals
+        $USBdetails = @(); $USBdatalines = @();
+        if ($eventType -eq 2) {
+            ##Write-host -ForegroundColor Yellow "Device arrived so - determine IF it is a storage device!"
 
-        # Actioning only if it is a "WAIKATO" domain user logged on.... AND not a desk PC
-        if (($loggedonuser -like 'WAIKATO\*') -and ($env:computername -notlike "liby-*lend*") -and ($env:computername -notlike "liby-m-dis*") -and ($env:computername -notlike "liby-*desk*") -and ($env:computername -notlike "liby-*dis*")) {
-            # Get the lines in the local log file (if it is present) of previous USB drive details then delete it.
-            if (Test-Path C:\Users\Public\USB.txt) {$previousUSBs = get-content C:\Users\Public\USB.txt; Remove-Item  C:\Users\Public\USB.txt -Force}
+            # Extract the logged on user (if any) using the "Win32_ComputerSystem" namespace in WMI 
+            # Doing it this way allows this script to run as under Computer Configuration or User Configuration in Group Policy
+            $colItems = get-wmiobject -class "Win32_ComputerSystem" -namespace "root\CIMV2" -computername $env:computername
+            $loggedonuser = $null; foreach ($objItem in $colItems) {$loggedonuser = $objItem.UserName}
+            # "Belt and braces" here - confiming a "valid" username is deduced... (really for only if the script is run at logon...)
+            if (!($loggedonuser -like 'WAIKATO\*')) {if ($env:USERDOMAIN -eq 'WAIKATO') {$loggedonuser = $env:USERDOMAIN + "\" + $env:USERNAME}}
             
-            # Get the details of any USB storage devices connected to the PC
-            $USBdetails = get-wmiobject win32_diskdrive | ? { ($_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*') -or ($_.mediatype -eq 'External hard disk media') }            if ($USBdetails -ne $null) {
-            if ($USBdetails -ne $null) {
-                # Allowing for multiple USB storage devices - load arrays with the device data
-                $SerialNumbers = @(); $pnpdeviceIDs = @(); $SmediaTypes = @(); $Captions = @(); $Sizes = @()
-                foreach ($usbobject in $USBdetails) {
-                    # Rationalise the usb data confirming NULL entries in serialNUMs... OR  single digit entries to NULL
-                    # To be used, a serial number has to have more than two characters or numbers.....
-                    if (($usbobject.serialnumber).length -le 2) {$SN = $null} else {$SN = $usbobject.serialnumber}
-                    # Ensure that the "|" pipe is NOT used in the string for the Device ID as it is being used by this process as a field separator
-                    $USBdatalines += $SN + '|' + ($usbobject.pnpdeviceid).replace('|', '_') + '|' + $usbobject.mediatype + '|' + $usbobject.caption + '|' + $usbobject.size
-                }
+            # Actioning only if it is a "WAIKATO" domain user logged on.... AND not a desk PC
+            if (($loggedonuser -like 'WAIKATO\*') -and ($env:computername -notlike "liby-*lend*") -and ($env:computername -notlike "liby-m-dis*") -and ($env:computername -notlike "liby-*desk*") -and ($env:computername -notlike "liby-*dis*")) {
+                # Get the details of any USB storage devices connected to the PC
+                $USBdetails = get-wmiobject win32_diskdrive | ? { ($_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*') -or ($_.mediatype -eq 'External hard disk media') }
+        
+                # On a practical level it seems like the device arrival is detected multiple times (in testing anywhere fron 3 to 7 times)
+                # Pondering here: Maybe each USB device connected to the pc is triggering a device arrival event when a NEW device is registered?
+                # The following comparison is to limit actions on detection of a storeage device(s) to only one "series" of detections...
+                if (($USBdetails -ne $previousUSBdetails) -and  ($USBdetails -ne $null)) {
+                    Write-host -ForegroundColor Green "STORAGE Device dectected..."; $USBdetails
 
-                # Some USB devices have been seen to use NONunicode characters causing interpretation conflicts when comparing previously written data to incoming data. 
-                # To manage this situation we are writing incoming USB data to a temp file at C:\Users\Public\USB.tmp and then reading it back in to the array BEFORE it is used for comparison 
-                $USBdatalines | Out-File C:\Users\Public\USB.tmp -Encoding ascii; $USBdatalines = @()
-                $USBdatalines = Get-Content C:\Users\Public\USB.tmp; Remove-Item C:\Users\Public\USB.tmp -Force
+                    foreach ($usbobject in $USBdetails) {
+                        # Rationalise the usb data confirming NULL entries in serialNUMs... OR  single or two digit entries to NULL
+                        # To be used, a serial number has to have more than two characters or numbers..... ALSO append Computername and Username data.
+                        if (($usbobject.serialnumber).length -le 2) {$SN = $null} else {$SN = $usbobject.serialnumber}
+                        # Ensure that the "|" pipe is NOT used in the string for the Device ID as it is being used by this process as a field separator
+                        $USBdatalines += $SN + '|' + ($usbobject.pnpdeviceid).replace('|', '_') + '|' + $usbobject.mediatype + '|' + $usbobject.caption + '|' + $usbobject.size + '|' + $env:computername + '|' + $loggedonuser
+                    }
 
-                foreach ($USBdataline in $USBdatalines) {
-                    # Filter for devices previously "seen" on this pc (loaded to $previousUSBs array).
-                    if ($previousUSBs -ne $null) {
-                        # Basiclly any USB device is logged locally when first detected.
-                        foreach ($previousUSB in $previousUSBs) {
-                            # Compare the first 5 fields of each dataline (spliting on "|" IF they are the same, then adjust the $USBdataline to the previously detected value...
-                            # Doing this provides a way to avoid making another entry in the database for a different user for this USB storage device.
-                            if (($USBdataline.split('|')[0] -eq $previousUSB.split('|')[0]) -and ($USBdataline.split('|')[1] -eq $previousUSB.split('|')[1]) -and ($USBdataline.split('|')[2] -eq $previousUSB.split('|')[2]) -and ($USBdataline.split('|')[3] -eq $previousUSB.split('|')[3]) -and ($USBdataline.split('|')[4] -eq $previousUSB.split('|')[4])) {$USBdataline = $previousUSB} 
+                    # Lines of data to process INTO the database via the API
+                    if ($USBdatalines -ne $null) {
+                        foreach ($line in $USBdatalines) {
+                            $url  = "https://library.waikato.ac.nz/usb/index.php?action=loaddb"
+                            $url += "&serialnum="    + [uri]::EscapeDataString($line.split('|')[0])
+                            $url += "&deviceid="     + [uri]::EscapeDataString($line.split('|')[1])
+                            $url += "&mediatype="    + [uri]::EscapeDataString($line.split('|')[2])
+                            $url += "&caption="      + [uri]::EscapeDataString($line.split('|')[3])
+                            $url += "&sizebytes="    + [uri]::EscapeDataString($line.split('|')[4])
+                            $url += "&computername=" + [uri]::EscapeDataString($line.split('|')[5])
+                            $url += "&username="     + [uri]::EscapeDataString($line.split('|')[6])
+                            # Call the API with the $url
+                            $site = (New-Object System.Net.WebClient).DownloadString("$url")
+
+                            If ($site -like "*New record inserted*") {Write-Host -foreground Cyan "API advises: New record inserted"}
                         }
                     }
-
-                    # Test for the presence of the $env:computername in the $USBdataline - If it is NOT present, this means the data is a new USB entry substituted in the script block above.
-                    if ($USBdataline.split('|')[5] -ne $env:computername) {
-                        # The additional data fields that will be required for BOTH entry into the database AND rewriting of the local log file to the $USBdataline 
-                        $USBdataline = $USBdataline + '|' + $env:computername + '|' + $loggedonuser + '|' + (get-date -format 'yyyy-MM-dd').ToString() + '|' + (get-date -format 'HH:mm:ss').ToString()
-            
-                        # Assign the $USBdataline to the $USBdatabaselines array that will be used to load into the database
-                        $USBdatabaselines += $USBdataline
-                    }
-                    # Assign the $USBdataline to the $$fileoutput array that will be used to rewrite the local logfile
-                    $fileoutput += $USBdataline
                 }
-
-                # Ensure there are no duplicate entries in either $fileoutput or $USBdatabaselines arrays and write output in the local log file at C:\Users\Public\USB.txt
-                $fileoutput | Sort-Object -Unique | Out-File C:\Users\Public\USB.txt -Encoding ascii -Append
-                $USBdatabaselines = $USBdatabaselines | Sort-Object -Unique
-
-                # Negate any data in the $USBdatalines array so as to avoid conflict with the USB DETECTION (DBquery) below....
-                $USBdatalines = @()
+                # On a practical level it seems like the device arrival is detected multiple times (in testing anywhere fron 3 to 7 times)
+                # The $previousUSBdetails variable is used to limit actions on detection of a storeage device(s)l to only one"series" of detections...
+                $previousUSBdetails = $USBdetails
             }
         }
-        
-        # Calls to the MySQL database are being made indirectly using an API call on a web server. 
-        # In this way there is no need to surface database access details into this script!
-
-        # Lines of data to process INTO the database via the API
-        if ($USBdatabaselines -ne $null) {
-            foreach ($line in $USBdatabaselines) {
-                $url  = "https://library.waikato.ac.nz/usb/index.php?action=loaddb"
-                $url += "&serialnum="    + [uri]::EscapeDataString($line.split('|')[0])
-                $url += "&deviceid="     + [uri]::EscapeDataString($line.split('|')[1])
-                $url += "&mediatype="    + [uri]::EscapeDataString($line.split('|')[2])
-                $url += "&caption="      + [uri]::EscapeDataString($line.split('|')[3])
-                $url += "&sizebytes="    + [uri]::EscapeDataString($line.split('|')[4])
-                $url += "&computername=" + [uri]::EscapeDataString($line.split('|')[5])
-                $url += "&username="     + [uri]::EscapeDataString($line.split('|')[6])
-                # Call the API with the $url
-                (New-Object System.Net.WebClient).DownloadString("$url")
-            }
-        }
-        start-sleep 300
-    }
+        Remove-Event -SourceIdentifier deviceChange
+    }  #Loop until next event
+    # For completeness Unregister the event - just that this line will never get called due to the endless loop!
+    Unregister-Event -SourceIdentifier deviceChange
 }
 
 #endregion: USB DETECTION (normal)
+
 
 
 #region: USB DETECTION (DBquery)
