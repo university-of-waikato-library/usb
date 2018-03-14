@@ -1,8 +1,8 @@
--- MySQL dump 10.16  Distrib 10.2.8-MariaDB, for Linux (x86_64)
+-- MySQL dump 10.13  Distrib 5.7.21, for Linux (x86_64)
 --
 -- Host: localhost    Database: usb_device
 -- ------------------------------------------------------
--- Server version	10.2.8-MariaDB-log
+-- Server version	5.5.5-10.2.11-MariaDB-log
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -19,8 +19,7 @@
 -- Current Database: `usb_device`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `usb_device` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;
-
+CREATE DATABASE  IF NOT EXISTS `usb_device` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;
 USE `usb_device`;
 
 --
@@ -43,7 +42,7 @@ CREATE TABLE `returned` (
   KEY `timestamp` (`date`,`time`),
   KEY `device_wo_serial` (`deviceid`,`caption`),
   KEY `device_w_serial` (`deviceid`,`caption`,`serialnum`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=200 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -65,10 +64,11 @@ CREATE TABLE `storage` (
   `time` time NOT NULL DEFAULT current_timestamp(),
   `fullname` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `device_user_pc` (`serialnum`,`deviceid`,`caption`,`sizebytes`,`computername`,`username`),
   KEY `timestamp` (`date`,`time`),
   KEY `device_w_serial` (`deviceid`,`caption`,`serialnum`),
   KEY `device_wo_serial` (`deviceid`,`caption`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20616 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -80,4 +80,4 @@ CREATE TABLE `storage` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-09-04 10:54:32
+-- Dump completed on 2018-03-15  8:15:31
