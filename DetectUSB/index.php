@@ -3,8 +3,8 @@
     // Organisation:  University of Waikato
     // Department:    Library Systems Team
     // Purpose:       Acts as a simple API to insert or display user details associated with USB devices recorded during user sessions in our labs
-    // Date:          2017-04-13
-    // Version:       1.1
+    // Date:          2018-03-15
+    // Version:       1.2
 
     // History
     // 1.1 - 2017-08-31 - Fred Young (University of Waikato)
@@ -31,6 +31,7 @@
         }
 
         // Populate common variables from $_GET if they are set, otherwise make them null
+       	// Some poor quality USB devices may not return a valid serial number. A common problem appears to be devices which return a couple random bytes of binary data instead of a string. As these values are treated as only a character or two, we discard serial numbers which are very short.
         $serialnum = isset($_GET["serialnum"]) && strlen($_GET["serialnum"]) > 2 ? $serialnum = $_GET["serialnum"] : null;
         $deviceid     = isset($_GET["deviceid"]) ? $_GET["deviceid"] : null;
         $caption      = isset($_GET["caption"]) ? $_GET["caption"] : null;
@@ -59,7 +60,7 @@
         // INSERT BEGIN
         // Insert a new device sighting into the database
 
-        $stmt = $mysqli->prepare("INSERT INTO usb_device.storage (serialnum, deviceid, caption, sizebytes, computername, username) VALUES (?, ?, ?, ?, ?, ?)");
+       	$stmt = $mysqli->prepare("INSERT INTO usb_device.storage (serialnum, deviceid, caption, sizebytes, computername, username) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE date = CURRENT_TIMESTAMP(), time = CURRENT_TIMESTAMP()");
         $stmt->bind_param("sssiss", $serialnum, $deviceid, $caption, $sizebytes, $computername, $username);
         // Some poor quality USB devices may not return a valid serial number. A common problem appears to be devices which return a couple random bytes of binary data instead of a string. As these values are treated as only a character or two, we discard serial numbers which are very short.
         $stmt->execute();
