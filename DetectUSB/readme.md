@@ -6,7 +6,7 @@ The files in the DetectUSB directory support a USB storage device data collectio
 
 Import the provided schema in `USB_Device.sql` on a MySQL/MariaDB server.
 
-You will need to create an account with `select` and `insert` privileges for the web API script.
+You will need to create an account with `select`, `insert` and `update` privileges for the web API script.
 
 ## Web API
 
