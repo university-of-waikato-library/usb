@@ -83,6 +83,11 @@ if ($normalUSBdetection -eq $true) {
                             $url += "&computername=" + [uri]::EscapeDataString($line.split('|')[5])
                             $url += "&username="     + [uri]::EscapeDataString($line.split('|')[6])
                             
+                            # Set the TLS security Protocol to TLS 1.2 
+                            # POSSIBLE ISSUE HERE: If running this script as a service AVOID running it directly ONSTART as the .NET Security Protocol 
+                            # libraries my not load in time! Rather use ONSTART to set a scheduled task to run say 3 minutes later, to run this script.
+                            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                            
                             # Call the API with the $url
                             $site = (New-Object System.Net.WebClient).DownloadString("$url")
 
