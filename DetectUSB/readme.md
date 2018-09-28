@@ -34,10 +34,10 @@ There are some conditional lines which will need adjusting for your local enviro
 The script is written in a way that allows flexibility in how it can be called.
 The easiest way is to use Group Policy.
 
-It can be run:
+It can be run as a service or a user process:
 
-* Using ONSTART to run it as a service in the background independent of users is recommended, or
-* Using the user LOGON script trigger to run it only when users are logged in is also possible.
+* To run as a service in the background independent of users. To do this we have found we have to use ONSTART indirectly due to what appears to be slow loading of .NET libraries. It is recommended that ONSTART sets a scheduled task to run this script say 3 minutes later.
+* Alternately, using the user LOGON script trigger to run it only when users are logged in is also possible.
 
 In both cases active querying occurs at 5 minute intervals.
 
