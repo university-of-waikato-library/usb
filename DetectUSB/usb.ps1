@@ -11,13 +11,15 @@
 
 # Test for the presence of ANY argument supplied with the calling of this script. 
 # If ANY argument exists, the script drops into the USB Database QUERY mode
-if ($args[0] -eq $null) {$normalUSBdetection = $true} else {$usbDBquery = $true}
+if ($null -eq $args[0]) {$normalUSBdetection = $true} else {$usbDBquery = $true}
 
 #region: USB DETECTION (normal)
         
 # Only perform a data export IF the username returned is a WAIKATO domain user
 if ($normalUSBdetection -eq $true) {
     write-host (get-date -format s) " Beginning USB DETECTION script..."
+    # Write to log file (starting the file for the session)
+    if (Test-Path C:\Windows\Libr\*.*) {((get-date -format s) + " Beginning USB DETECTION script...") | out-file 'C:\Windows\Libr\usb.txt' -Encoding utf8}
     
     # Register the WMI event class to use
     Register-WmiEvent -Class win32_DeviceChangeEvent -SourceIdentifier deviceChange
@@ -28,34 +30,37 @@ if ($normalUSBdetection -eq $true) {
         # Establish a new Wait Event object...
         $newEvent = Wait-Event -SourceIdentifier deviceChange
         $eventType = $newEvent.SourceEventArgs.NewEvent.EventType
-        $eventTypeName = switch($eventType) {
-            1 {"Configuration changed"}
-            2 {"Device arrival"}
-            3 {"Device removal"}
-            4 {"docking"}
-        }
         
         # Process ONLY device arrivals
         $USBdetails = @(); $USBdatalines = @();
         if ($eventType -eq 2) {
-            ##Write-host -ForegroundColor Yellow "Device arrived so - determine IF it is a storage device!"
-
+            # USER AND LOCATION
             # Extract the logged on user (if any) using the "Win32_ComputerSystem" namespace in WMI 
             # Doing it this way allows this script to run as under Computer Configuration or User Configuration in Group Policy
             $colItems = get-wmiobject -class "Win32_ComputerSystem" -namespace "root\CIMV2" -computername $env:computername
             $loggedonuser = $null; foreach ($objItem in $colItems) {$loggedonuser = $objItem.UserName}
+            # Experience has shown that the Win32_ComputerSystem namespace is NOT always reliable, so checking in with the .NET System.Security.Principal.WindowsIdentity provider
+            if ($loggedonuser.length -le 1) {$loggedonuser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name}
+            
+            # LIMITS AND EXCEPTIONS - Basiclly testing for and ensuing we process only valid network usernames from valid PC locations.
+            $validusername = $false
             # "Belt and braces" here - confiming a "valid" username is deduced... (really for only if the script is run at logon...)
             if (!($loggedonuser -like 'WAIKATO\*')) {if ($env:USERDOMAIN -eq 'WAIKATO') {$loggedonuser = $env:USERDOMAIN + "\" + $env:USERNAME}}
-            
-            # Actioning only if it is a "WAIKATO" domain user logged on.... AND not a desk PC
-            if (($loggedonuser -like 'WAIKATO\*') -and ($env:computername -notlike "liby-*lend*") -and ($env:computername -notlike "liby-m-dis*") -and ($env:computername -notlike "liby-*desk*") -and ($env:computername -notlike "liby-*dis*")) {
+            # Actioning only if it is a "WAIKATO" domain user logged on.... AND excepting a number of desk PCs where we would prefer this script did NOT run.
+            if (($loggedonuser -like 'WAIKATO\*') -and ($env:computername -notlike "liby-*lend*") -and ($env:computername -notlike "liby-m-dis*") `
+            -and ($env:computername -notlike "liby-*desk*") -and ($env:computername -notlike "liby-*dis*")) {
+                $validusername = $true
+            }
+
+            # LOAD USB OR PORTABLE DRIVE DETAILS
+            if ($true -eq $validusername) {
                 # Get the details of any USB storage devices connected to the PC
-                $USBdetails = get-wmiobject win32_diskdrive | ? { ($_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*') -or ($_.mediatype -eq 'External hard disk media') }
+                $USBdetails = get-wmiobject win32_diskdrive | Where-Object { ($_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*') -or ($_.mediatype -eq 'External hard disk media') }
         
                 # On a practical level it seems like the device arrival is detected multiple times (in testing anywhere fron 3 to 7 times)
                 # Pondering here: Maybe each USB device connected to the pc is triggering a device arrival event when a NEW device is registered?
                 # The following comparison is to limit actions on detection of a storeage device(s) to only one "series" of detections...
-                if (($USBdetails -ne $previousUSBdetails) -and  ($USBdetails -ne $null)) {
+                if (($USBdetails -ne $previousUSBdetails) -and  ($null -ne $USBdetails)) {
                     Write-host -ForegroundColor Green "STORAGE Device dectected..."; $USBdetails
 
                     foreach ($usbobject in $USBdetails) {
@@ -67,7 +72,7 @@ if ($normalUSBdetection -eq $true) {
                     }
 
                     # Lines of data to process INTO the database via the API
-                    if ($USBdatalines -ne $null) {
+                    if ($null -ne $USBdatalines) {
                         foreach ($line in $USBdatalines) {
                             $url  = "https://library.waikato.ac.nz/usb/index.php?action=loaddb"
                             $url += "&serialnum="    + [uri]::EscapeDataString($line.split('|')[0])
@@ -77,15 +82,18 @@ if ($normalUSBdetection -eq $true) {
                             $url += "&sizebytes="    + [uri]::EscapeDataString($line.split('|')[4])
                             $url += "&computername=" + [uri]::EscapeDataString($line.split('|')[5])
                             $url += "&username="     + [uri]::EscapeDataString($line.split('|')[6])
+                            
                             # Call the API with the $url
                             $site = (New-Object System.Net.WebClient).DownloadString("$url")
 
-                            If ($site -like "*New record inserted*") {Write-Host -foreground Cyan "API advises: New record inserted"}
+                            If ($site -like "*Record inserted OR updated*") {Write-Host -foreground Cyan "API advises: Record inserted OR updated"}
+                            # Append to log file
+                            If ($site -like "*Record inserted OR updated*") {if (Test-Path C:\Windows\Libr\*.*) {((get-date -format s) + " API advises: Record inserted OR updated") | out-file 'C:\Windows\Libr\usb.txt' -Encoding utf8 -Append}}
                         }
                     }
                 }
                 # On a practical level it seems like the device arrival is detected multiple times (in testing anywhere fron 3 to 7 times)
-                # The $previousUSBdetails variable is used to limit actions on detection of a storeage device(s)l to only one"series" of detections...
+                # The $previousUSBdetails variable is used to limit actions on detection of a storeage device(s) to only one"series" of detections...
                 $previousUSBdetails = $USBdetails
             }
         }
@@ -98,19 +106,16 @@ if ($normalUSBdetection -eq $true) {
 #endregion: USB DETECTION (normal)
 
 
-
 #region: USB DETECTION (DBquery)
 
 if ($usbDBquery -eq $true) {
     # Get the details of any USB storage devices connected to the PC
-    $USBdetails = get-wmiobject win32_diskdrive | ? { ($_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*') -or ($_.mediatype -eq 'External hard disk media') }            if ($USBdetails -ne $null) {
-    if ($USBdetails -ne $null) {
-        # Allowing for multiple USB storage devices - load arrays with the device data
-        $SerialNumbers = @(); $pnpdeviceIDs = @(); $SmediaTypes = @(); $Captions = @(); $Sizes = @()
+    $USBdetails = get-wmiobject win32_diskdrive | Where-Object { ($_.mediatype -eq 'Removable Media' -and $_.pnpdeviceid -like 'usbstor*') -or ($_.mediatype -eq 'External hard disk media') }
+    if ($null -ne $USBdetails) {
         foreach ($usbobject in $USBdetails) {
             # Rationalise the usb data confirming NULL entries in serialNUMs... OR  single digit entries to NULL
-            # BASICLLY to be used a serial number has to have more than one character or number.....
-            if (($usbobject.serialnumber).length -le 1) {$SN = $null} else {$SN = $usbobject.serialnumber}
+            # BASICALLY to be used, a serial number has to have more than two characters or numbers.....
+            if (($usbobject.serialnumber).length -le 2) {$SN = $null} else {$SN = $usbobject.serialnumber}
             # Ensure that the "|" pipe is NOT used in the string for the Device ID
             $USBdatalines += $SN + '|' + ($usbobject.pnpdeviceid).replace('|', '_') + '|' + $usbobject.mediatype + '|' + $usbobject.caption + '|' + $usbobject.size
         }
@@ -130,7 +135,7 @@ if ($usbDBquery -eq $true) {
 
     if ($USBdatalines.Count -eq 1) {
         # Set up a URL for the API to query the database
-        if ($USBdatalines -ne $null) {
+        if ($null -ne $USBdatalines) {
             write-host -f Green "Querying for USB/User from the Database..."; write-host
             foreach ($line in $USBdatalines) {
                 $url  = "https://library.waikato.ac.nz/usb/index.php?action=querydb"
@@ -141,10 +146,9 @@ if ($usbDBquery -eq $true) {
                 $url += "&sizebytes="    + [uri]::EscapeDataString($line.split('|')[4])
                 
                 # Call the API invoking the chrome browser in the first instance
-                $chrome -ne $null
                 if (test-path "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe") {$chrome = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"}
                 if (test-path "C:\Program Files\Google\Chrome\Application\chrome.exe") {$chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"}
-                if ($chrome -ne $null) {
+                if ($null -ne $chrome) {
                     Start-Process -FilePath $chrome -ArgumentList $url
                     # NOTE: Start-Process was settled on after extensive testing of options and alternatives. The $url typically contains
                     #       a number of "special" characters ("&" "\" etc) that seem to break the API call, when used in the $url argument of
@@ -152,7 +156,7 @@ if ($usbDBquery -eq $true) {
                     #       string, "Start-Process -FilePath $chrome -ArgumentList $url" seems to solve for this!
                 } else {
                     # Call the API invoking the default browser Using a .NET static function 
-                    # (Doing this is less certain that just opening in chrome and this may only work on Windows 10 in any case...)
+                    # (Doing this is less certain than just opening in chrome and this may only work on Windows 10 in any case...)
                     [Diagnostics.Process]::Start($url,'arguments')
                 }
             }
