@@ -39,8 +39,6 @@ It can be run as a service or a user process:
 * To run as a service in the background independent of users. To do this we have found we have to use ONSTART indirectly due to what appears to be slow loading of .NET libraries. It is recommended that ONSTART sets a scheduled task to run this script say 3 minutes later.
 * Alternately, using the user LOGON script trigger to run it only when users are logged in is also possible.
 
-In both cases active querying occurs at 5 minute intervals.
-
 ### To check for the owner of a USB
 
 Normal setup is to have a shortcut on the desktop of selected front desk PCs.
